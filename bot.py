@@ -456,21 +456,6 @@ async def user_added_handler(event):
     if isinstance(event.message.action, types.MessageActionChatAddUser):
         added_users = event.message.action.users
         if any(user in [1980946268, 1083015722] for user in added_users):
-            # if register_prompt[event.message.from_id.user_id]:
-            #     chat_id = int('-100' + str(event.message.peer_id.channel_id))
-            #     new_chat_info = await bot.get_entity(event.message.peer_id.channel_id)
-            #     try:
-            #         Chat.create(chat_id=chat_id, chat_title=new_chat_info.title, chat_owner_user_id=event.message.from_id.user_id)
-            #         ChatSettings.create(chat_id=chat_id)
-            #         logging.warning(f'<user_added> Chat {chat_id} registered, owner {event.message.from_id.user_id}')
-            #         owner = User.get(User.user_id == event.message.from_id.user_id)
-            #         await bot.send_message(event.message.from_id.user_id, chat_registered[owner.language].format(new_chat_info.title))
-            #     except IntegrityError:
-            #         owner = User.get(User.user_id == event.message.from_id.user_id)
-            #         await bot.send_message(event.message.from_id.user_id, permissions_set[owner.language].format(new_chat_info.title))
-            #     await register_prompt[event.message.from_id.user_id].delete()
-            #     register_prompt.pop(event.message.from_id.user_id)
-            #     return
             return
     else:
         added_users = event.message.from_id.user_id
