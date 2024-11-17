@@ -522,8 +522,7 @@ async def user_added_handler(event):
 
 # handle bot permissions change
 @bot.on(events.Raw(types.UpdateChannelParticipant, func=lambda event: event.user_id in [1980946268, 1083015722]
-                                                            and event.new_participant
-                                                            and event.new_participant.admin_rights))
+                                                            and event.new_participant))
 @logger
 async def bot_permissions_change_handler(event):
     global register_prompt
@@ -540,6 +539,7 @@ async def bot_permissions_change_handler(event):
             owner = User.get(User.user_id == actor)
             await bot.send_message(actor, chat_registered[owner.language].format(new_chat_info.title))
         except IntegrityError:
+            owner = User.get(User.user_id == actor)
             await bot.send_message(actor, permissions_set[owner.language].format(new_chat_info.title))
         except errors.UserIsBlockedError:
             bot.send_message(event.channel_id, user_blocked_the_bot[owner.language])
