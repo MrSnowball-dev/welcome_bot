@@ -72,11 +72,11 @@ def change_language(sender_id, language):
     user.language = language
     user.save()
 
-async def send_welcome(event, chat, buttons=None, check=False):
+async def send_welcome(event, chat, buttons=None, check=False, link_preview=True):
     if check:
         chat.chat_id = event.chat_id
     if chat.welcome_type == 'text':
-        welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+        welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons, link_preview=link_preview)
     else:
         file = await get_from_cdn(chat.welcome_file_id)
         if file:
@@ -477,7 +477,7 @@ async def user_added_handler(event):
     chat_settings = ChatSettings.get(ChatSettings.chat_id == chat_id)
 
     try:
-        welcome = await send_welcome(event, chat)
+        welcome = await send_welcome(event, chat, link_preview=chat_settings.link_preview)
     except errors.BadRequestError:
         logging.warning(f'<new_user> {chat_id} is a topic chat')
         await bot.send_message(owner.user_id, chat_is_topic[owner.language].format(chat.chat_title))
@@ -588,7 +588,7 @@ async def new_welcome_handler(event):
         buttons = [
             [Button.inline(autodelete_settings_button_timeout[user.language], b'autodelete_timeout:' + str(chat_id).encode())],
             [Button.inline(autodelete_settings_button_delete_service_message[user.language] + (' ☑️' if chat_settings.auto_delete_svc_msg is True else ' ❌'), b'switch_autodel_svc_msg:' + str(chat_id).encode())],
-            [Button.inline(autodelete_settings_button_off[user.language], b'switch_autodel:' + str(chat_id).encode())],
+            [Button.inline(settings_switch_button_off[user.language], b'switch_autodel:' + str(chat_id).encode())],
             [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
         ]
         await event.delete()
@@ -694,7 +694,7 @@ async def payment_received_handler(event):
             user = User.get(User.user_id == event.message.sender_id)
             await bot.send_message(event.message.peer_id.user_id, donate_thanks_message[user.language])
             asyncio.sleep(0.5)
-            await bot.send_message(197416875, f"User {user.name} `({user.user_id}` donated 100 Stars!") 
+            await bot.send_message(197416875, f"User {user.name} (`{user.user_id}`) donated 100 Stars!")
 
         raise events.StopPropagation
 
@@ -808,7 +808,7 @@ async def callback_handler(event):
         if chat.welcome_type == 'text':
             if chat_info is None:
                 chat_info[user.id] = await event.respond(selected_chat_info[user.language].format(chat.chat_title, chat.welcome_count) if chat.welcome_count != 0 else selected_chat_info_0_users[user.language].format(chat.chat_title))
-            await chat_info[user.id].reply(chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None)
+            await chat_info[user.id].reply(chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None, link_preview=chat_settings.link_preview)
         else:
             file = await get_from_cdn(chat.welcome_file_id)
             if file:
@@ -838,6 +838,7 @@ async def callback_handler(event):
             [Button.inline(chat_menu_button_settings_autodelete[user.language], b'autodelete:' + str(chat_id).encode())],
             [Button.inline(chat_menu_button_settings_notifications[user.language], b'join_notification:' + str(chat_id).encode())],
             [Button.inline(chat_menu_button_settings_ownership_transfer[user.language], b'ownership_transfer:' + str(chat_id).encode())],
+            [Button.inline(chat_menu_button_settings_link_preview[user.language], b'link_preview:' + str(chat_id).encode())],
             [Button.inline(chat_menu_button_settings_delete[user.language], b'delete_chat:' + str(chat_id).encode())],
             [Button.inline(chat_menu_button_back_to_chat[user.language], b'back_to_chat:' + str(chat_id).encode())]
         ]
@@ -852,14 +853,14 @@ async def callback_handler(event):
 
         if chat_settings.auto_delete is False:
             buttons = [
-                [Button.inline(autodelete_settings_button_on[user.language], b'switch_autodel:' + str(chat_id).encode())],
+                [Button.inline(settings_switch_button_on[user.language], b'switch_autodel:' + str(chat_id).encode())],
                 [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
             ]
         else:
             buttons = [
                 [Button.inline(autodelete_settings_button_timeout[user.language], b'autodelete_timeout:' + str(chat_id).encode())],
                 [Button.inline(autodelete_settings_button_delete_service_message[user.language] + (' ☑️' if chat_settings.auto_delete_svc_msg else ' ❌'), b'switch_autodel_svc_msg:' + str(chat_id).encode())],
-                [Button.inline(autodelete_settings_button_off[user.language], b'switch_autodel:' + str(chat_id).encode())],
+                [Button.inline(settings_switch_button_off[user.language], b'switch_autodel:' + str(chat_id).encode())],
                 [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
             ]
 
@@ -883,13 +884,27 @@ async def callback_handler(event):
             chat_settings.join_notification = not chat_settings.join_notification
 
         buttons = [
-            [Button.inline(join_notification_button_turn_off[user.language] if chat_settings.join_notification
-                            else join_notification_button_turn_on[user.language],
+            [Button.inline(settings_switch_button_off[user.language] if chat_settings.join_notification
+                            else settings_switch_button_on[user.language],
                             b'switch_join_notification:' + str(chat_id).encode())],
             [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
         ]
 
         await event.edit(join_notification_settings[user.language].format(setting_off[user.language] if chat_settings.join_notification is False else setting_on[user.language]), buttons=buttons)
+        chat_settings.save()
+
+    elif data.startswith('link_preview:') or data.startswith('switch_link_preview:'):
+        if data.startswith('switch_link_preview:'):
+            chat_settings.link_preview = not chat_settings.link_preview
+
+        buttons = [
+            [Button.inline(settings_switch_button_off[user.language] if chat_settings.link_preview
+                            else settings_switch_button_on[user.language],
+                            b'switch_link_preview:' + str(chat_id).encode())],
+            [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
+        ]
+
+        await event.edit(link_preview_settings[user.language].format(setting_off[user.language] if chat_settings.link_preview is False else setting_on[user.language]), buttons=buttons)
         chat_settings.save()
 
     elif data.startswith('delete_chat:'):

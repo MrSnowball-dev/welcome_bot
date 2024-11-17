@@ -258,6 +258,19 @@ chat_menu_button_settings_ownership_transfer = {
     "tr": "🤝 Sahiplik transferi"
 }
 
+chat_menu_button_settings_link_preview = {
+    "ru": "🔗 Предпросмотр ссылок",
+    "en": "🔗 Link preview",
+    "es": "🔗 Vista previa de enlaces",
+    "pt": "🔗 Pré-visualização de links",
+    "it": "🔗 Anteprima link",
+    "fr": "🔗 Aperçu du lien",
+    "de": "🔗 Linkvorschau",
+    "ua": "🔗 Попередній перегляд посилань",
+    "uz": "🔗 Havolalar oldi ko'rsatish",
+    "tr": "🔗 Bağlantı önizlemesi"
+}
+
 chat_menu_button_settings_delete = {
     "ru": "❌ Удалить чат",
     "en": "❌ Delete chat",
@@ -362,6 +375,19 @@ selected_chat_editing_success = {
     "tr": "🎉 Hoş geldiniz mesajı başarıyla güncellendi!"
 }
 
+setting_on = {
+    "ru": "ВКЛЮЧЕНО",
+    "en": "ON",
+    "es": "ENCENDIDO",
+    "pt": "LIGADO",
+    "it": "ACCESO",
+    "fr": "ACTIVÉ",
+    "de": "EINGESCHALTET",
+    "ua": "УВІМКНЕНО",
+    "uz": "YOQILDI",
+    "tr": "AÇIK"
+}
+
 setting_off = {
     "ru": "ВЫКЛЮЧЕНО",
     "en": "OFF",
@@ -375,17 +401,30 @@ setting_off = {
     "tr": "KAPALI"
 }
 
-setting_on = {
-    "ru": "ВКЛЮЧЕНО",
-    "en": "ON",
-    "es": "ENCENDIDO",
-    "pt": "LIGADO",
-    "it": "ACCESO",
-    "fr": "ACTIVÉ",
-    "de": "EINGESCHALTET",
-    "ua": "УВІМКНЕНО",
-    "uz": "YOQILDI",
-    "tr": "AÇIK"
+settings_switch_button_on = {
+    "ru": "☑️ Включить",
+    "en": "☑️ Turn on",
+    "es": "☑️ Encender",
+    "pt": "☑️ Ligar",
+    "it": "☑️ Accendere",
+    "fr": "☑️ Allumer",
+    "de": "☑️ Einschalten",
+    "ua": "☑️ Увімкнути",
+    "uz": "☑️ Yoqish",
+    "tr": "☑️ Aç"
+}
+
+settings_switch_button_off = {
+    "ru": "❌ Выключить",
+    "en": "❌ Turn off",
+    "es": "❌ Apagar",
+    "pt": "❌ Desligar",
+    "it": "❌ Spegnere",
+    "fr": "❌ Éteindre",
+    "de": "❌ Ausschalten",
+    "ua": "❌ Вимкнути",
+    "uz": "❌ O'chirish",
+    "tr": "❌ Kapat"
 }
 
 autodelete_settings = {
@@ -427,19 +466,6 @@ autodelete_settings_button_delete_service_message = {
     "tr": "🗑️ Kullanıcı katılma mesajlarını sil:"
 }
 
-autodelete_settings_button_on = {
-    "ru": "☑️ Включить",
-    "en": "☑️ Turn on",
-    "es": "☑️ Encender",
-    "pt": "☑️ Ligar",
-    "it": "☑️ Accendere",
-    "fr": "☑️ Allumer",
-    "de": "☑️ Einschalten",
-    "ua": "☑️ Увімкнути",
-    "uz": "☑️ Yoqish",
-    "tr": "☑️ Aç"
-}
-
 autodelete_settings_button_timeout = {
     "ru": "⏲️ Изменить таймаут",
     "en": "⏲️ Change timeout",
@@ -479,19 +505,6 @@ autodelete_settings_change_timeout_error = {
     "tr": "⚠️ Hata! 1 ile 600 arasında bir sayı girin."
 }
 
-autodelete_settings_button_off = {
-    "ru": "❌ Выключить",
-    "en": "❌ Turn off",
-    "es": "❌ Apagar",
-    "pt": "❌ Desligar",
-    "it": "❌ Spegnere",
-    "fr": "❌ Éteindre",
-    "de": "❌ Ausschalten",
-    "ua": "❌ Вимкнути",
-    "uz": "❌ O'chirish",
-    "tr": "❌ Kapat"
-}
-
 join_notification_settings = {
     "ru": "Уведомления о входе новых пользователей: **{}**",
     "en": "User join notifications: **{}**",
@@ -503,32 +516,6 @@ join_notification_settings = {
     "ua": "Повідомлення про вхід користувача: **{}**",
     "uz": "Foydalanuvchi kiritish bildirishlari: **{}**",
     "tr": "Kullanıcı katılım bildirimleri: **{}**"
-}
-
-join_notification_button_turn_on = {
-    "ru": "🔔 Включить",
-    "en": "🔔 Turn on",
-    "es": "🔔 Encender",
-    "pt": "🔔 Ligar",
-    "it": "🔔 Accendere",
-    "fr": "🔔 Allumer",
-    "de": "🔔 Einschalten",
-    "ua": "🔔 Увімкнути",
-    "uz": "🔔 Yoqish",
-    "tr": "🔔 Aç"
-}
-
-join_notification_button_turn_off = {
-    "ru": "🔕 Выключить",
-    "en": "🔕 Turn off",
-    "es": "🔕 Apagar",
-    "pt": "🔕 Desligar",
-    "it": "🔕 Spegnere",
-    "fr": "🔕 Éteindre",
-    "de": "🔕 Ausschalten",
-    "ua": "🔕 Вимкнути",
-    "uz": "🔕 O'chirish",
-    "tr": "🔕 Kapat"
 }
 
 join_notification_message = {
@@ -646,6 +633,45 @@ ownership_transfer_notification = {
     "ua": "Вам передано власність привітання чату **{}**! Щоб налаштувати його, використовуйте команду /mychats",
     "uz": "Chatdagi **{}** xush kelibsiz xabarining egaligi sizga o'tkazildi! Uni sozlash uchun /mychats buyrug'idan foydalaning",
     "tr": "Sohbetteki hoş geldiniz mesajının sahipliği size devredildi **{}**! Özelleştirmek için /mychats komutunu kullanın"
+}
+
+link_preview_settings = {
+    "ru": "Отображение предпросмотра ссылок в приветствии: **{}**",
+    "en": "Link preview in welcome message: **{}**",
+    "es": "Vista previa del enlace en el mensaje de bienvenida: **{}**",
+    "pt": "Visualização do link na mensagem de boas-vindas: **{}**",
+    "it": "Anteprima del link nel messaggio di benvenuto: **{}**",
+    "fr": "Aperçu du lien dans le message de bienvenue: **{}**",
+    "de": "Linkvorschau in der Willkommensnachricht: **{}**",
+    "ua": "Попередній перегляд посилань у привітанні: **{}**",
+    "uz": "Xush kelibsiz xabarida havola oldini ko'rsatish: **{}**",
+    "tr": "Hoş geldiniz mesajında bağlantı önizlemesi: **{}**"
+}
+
+link_preview_button_turn_on = {
+    "ru": "🔗 Включить",
+    "en": "🔗 Turn on",
+    "es": "🔗 Encender",
+    "pt": "🔗 Ligar",
+    "it": "🔗 Accendere",
+    "fr": "🔗 Allumer",
+    "de": "🔗 Einschalten",
+    "ua": "🔗 Увімкнути",
+    "uz": "🔗 Yoqish",
+    "tr": "🔗 Aç"
+}
+
+link_preview_button_turn_off = {
+    "ru": "🚫 Выключить",
+    "en": "🚫 Turn off",
+    "es": "🚫 Apagar",
+    "pt": "🚫 Desligar",
+    "it": "🚫 Spegnere",
+    "fr": "🚫 Éteindre",
+    "de": "🚫 Ausschalten",
+    "ua": "🚫 Вимкнути",
+    "uz": "🚫 O'chirish",
+    "tr": "🚫 Kapat"
 }
 
 command_not_allowed = {

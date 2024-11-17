@@ -48,6 +48,7 @@ class ChatSettings(BaseModel):
     timeout = IntegerField(default=0)
     greet_by_name = BooleanField(default=False)
     join_notification = BooleanField(default=False)
+    link_preview = BooleanField(default=True)
 
     class Meta:
         table_name = 'chat_settings'
