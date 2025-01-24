@@ -75,6 +75,7 @@ def change_language(sender_id, language):
 async def send_welcome(event, chat, buttons=None, check=False, link_preview=True):
     if check:
         chat.chat_id = event.chat_id
+    logging.warning(f'<send_welcome> Sending welcome message to {chat.chat_id}')
     if chat.welcome_type == 'text':
         welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons, link_preview=link_preview)
     else:
@@ -224,7 +225,7 @@ async def register_handler(event):
     # bot_user.register_chat(user)
 
     # encode event.sender_id to base64
-    encoded_id = base64.b64encode(event.sender_id.to_bytes(4, 'big')).decode()
+    encoded_id = base64.b64encode(event.sender_id.to_bytes(8, 'big')).decode()
 
     buttons = [
         [Button.url(registering_new_chat_button[user.language], url=f'tg://resolve?domain={bot_name}&startgroup=reg_{encoded_id}&admin=delete_messages+manage_topics')]
@@ -235,13 +236,22 @@ async def register_handler(event):
 @bot.on(events.NewMessage(pattern='/mychats', func=lambda event: event.is_private))
 @logger
 async def mychats_handler(event):
+    user_id = None
+    if event.sender_id == 197416875:
+        if str(event.message.message).startswith('/mychats '):
+            user_id = int(event.message.message.split(' ')[1])
 
     try:
         user = User.get(User.user_id == event.sender_id)
     except User.DoesNotExist:
         await start_handler(event)
         return
-    chats = Chat.select().where(Chat.chat_owner_user_id == user)
+    except InterfaceError or OperationalError:
+        database.connect(reuse_if_open=True)
+    if user_id:
+        chats = Chat.select().where(Chat.chat_owner_user_id == user_id)
+    else:
+        chats = Chat.select().where(Chat.chat_owner_user_id == user)
 
     if chats.count() == 0:
         await event.respond(mychats_no_chats[user.language])
@@ -255,7 +265,11 @@ async def mychats_handler(event):
 @bot.on(events.NewMessage(pattern='/settings', func=lambda event: event.is_private))
 @logger
 async def settings_handler(event):
-    user = User.get(User.user_id == event.sender_id)
+    try:
+        user = User.get(User.user_id == event.sender_id)
+    except User.DoesNotExist:
+        await event.respond("I don't know you, click /start")
+        return
 
     buttons = [
         [Button.inline(value, f'lang:{str(user.user_id)}:{key}')] for key, value in language_buttons.items()
@@ -290,10 +304,21 @@ async def get_info_handler(event):
     except errors.UserNotParticipantError:
         logging.warning(f'</get_info> User {event.sender_id} is not a participant of {event.chat_id}')
         return
-    chat = Chat.get(Chat.chat_id == event.chat_id)
+
+    try:
+        chat = Chat.get(Chat.chat_id == event.chat_id)
+    except Chat.DoesNotExist:
+        logging.warning(f'</get_info> Chat {event.chat_id} not found in the database')
+        await event.reply("This chat is not registered. Please use private chat to manage welcome messages in this chat.")
+        return
     creator = User.get(User.id == chat.chat_owner_user_id)
-    if not permissions.is_admin and not permissions.is_creator:
-        await event.reply(command_not_allowed[creator.language])
+    try:
+        if not permissions.is_admin and not permissions.is_creator:
+            await event.reply(command_not_allowed[creator.language])
+            return
+    except AttributeError:
+        with open('permissions_error.txt', 'a') as file:
+            file.write(str(permissions) + '\n')
         return
     # │, ├, ─, └
     info = await bot.get_entity(event.chat_id)
@@ -473,6 +498,8 @@ async def user_added_handler(event):
     except User.DoesNotExist:
         logging.warning(f'<new_user> Owner of {chat_id} not found in the database')
         return
+    except InterfaceError or OperationalError:
+        database.connect(reuse_if_open=True)
 
     chat_settings = ChatSettings.get(ChatSettings.chat_id == chat_id)
 
@@ -527,23 +554,29 @@ async def user_added_handler(event):
 async def bot_permissions_change_handler(event):
     global register_prompt
     actor = event.actor_id
-    if register_prompt[actor]:
-        chat_id = int('-100' + str(event.channel_id))
-        try:
-            new_chat_info = await bot.get_entity(event.channel_id)
-            Chat.create(chat_id=chat_id, chat_title=new_chat_info.title, chat_owner_user_id=actor)
-            ChatSettings.create(chat_id=chat_id)
-            logging.warning(f'<bot_permissions_change> Chat {chat_id} registered, owner {actor}')
-            await register_prompt[actor].delete()
-            register_prompt.pop(actor)
-            owner = User.get(User.user_id == actor)
-            await bot.send_message(actor, chat_registered[owner.language].format(new_chat_info.title))
-        except IntegrityError:
-            owner = User.get(User.user_id == actor)
-            await bot.send_message(actor, permissions_set[owner.language].format(new_chat_info.title))
-        except errors.UserIsBlockedError:
-            bot.send_message(event.channel_id, user_blocked_the_bot[owner.language])
-            logging.warning(f'<bot_permissions_change> Owner of {chat_id} blocked the bot')
+    try:
+        if register_prompt[actor]:
+            chat_id = int('-100' + str(event.channel_id))
+            try:
+                new_chat_info = await bot.get_entity(event.channel_id)
+                Chat.create(chat_id=chat_id, chat_title=new_chat_info.title, chat_owner_user_id=actor)
+                ChatSettings.create(chat_id=chat_id)
+                logging.warning(f'<bot_permissions_change> Chat {chat_id} registered, owner {actor}')
+                await register_prompt[actor].delete()
+                register_prompt.pop(actor)
+                owner = User.get(User.user_id == actor)
+                await bot.send_message(actor, chat_registered[owner.language].format(new_chat_info.title))
+            except IntegrityError:
+                owner = User.get(User.user_id == actor)
+                await bot.send_message(actor, permissions_set[owner.language].format(new_chat_info.title))
+            except errors.UserIsBlockedError:
+                await bot.send_message(event.channel_id, user_blocked_the_bot[owner.language])
+                logging.warning(f'<bot_permissions_change> Owner of {chat_id} blocked the bot')
+    except errors.ChannelPrivateError:
+        logging.warning(f'<bot_permissions_change> Bot is not allowed to write in {event.channel_id}, owner {actor}')
+        await bot.send_message(actor, bot_not_allowed_to_write[owner.language].format(new_chat_info.title))
+    except KeyError:
+        await bot.send_message(actor, "Sorry, an error occurred. Please try /register again.")
 
     raise events.StopPropagation
 
