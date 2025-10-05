@@ -9,7 +9,10 @@ from botocore.exceptions import ClientError
 import io
 import pickle
 import base64
+import os
+import glob
 from peewee import *
+import aiocron
 
 from welcome_db_model import *
 from config import *
@@ -18,7 +21,7 @@ from translations import *
 # import mysql.connector as mysql
 # from tg_file_id.file_id import FileId
 
-logging.basicConfig(format='[%(asctime)s]: %(message)s',
+logging.basicConfig(format='[%(levelname)s]: %(message)s',
                     level=logging.WARNING)
 
 
@@ -48,6 +51,66 @@ chat_info = {}
 
 # region Functions
 
+def rotate_log_file(file_path, max_size_mb=5, max_files=5):
+    """Rotate log files when they exceed max_size_mb, keeping max_files versions"""
+    max_size_bytes = max_size_mb * 1024 * 1024
+    
+    # Check if current file exists and its size
+    if os.path.exists(file_path) and os.path.getsize(file_path) >= max_size_bytes:
+        # Find existing rotated files
+        base_name = file_path.rsplit('.', 1)[0]
+        extension = file_path.rsplit('.', 1)[1] if '.' in file_path else ''
+        
+        # Get list of existing rotated files
+        pattern = f"{base_name}.*.{extension}" if extension else f"{base_name}.*"
+        existing_files = glob.glob(pattern)
+        
+        # Extract numbers from existing files and sort
+        numbered_files = []
+        for f in existing_files:
+            try:
+                if extension:
+                    number = int(f.replace(f"{base_name}.", "").replace(f".{extension}", ""))
+                else:
+                    number = int(f.replace(f"{base_name}.", ""))
+                numbered_files.append((number, f))
+            except ValueError:
+                continue
+        
+        numbered_files.sort(reverse=True)
+        
+        # Remove files that exceed max_files limit
+        for i, (num, filepath) in enumerate(numbered_files):
+            if i >= max_files - 1:  # -1 because we're adding a new one
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
+        
+        # Rename existing files
+        for num, filepath in numbered_files:
+            if num < max_files - 1:
+                new_num = num + 1
+                if extension:
+                    new_name = f"{base_name}.{new_num}.{extension}"
+                else:
+                    new_name = f"{base_name}.{new_num}"
+                try:
+                    os.rename(filepath, new_name)
+                except OSError:
+                    pass
+        
+        # Rename current file to .1
+        if extension:
+            rotated_name = f"{base_name}.1.{extension}"
+        else:
+            rotated_name = f"{base_name}.1"
+        
+        try:
+            os.rename(file_path, rotated_name)
+        except OSError:
+            pass
+
 async def send_to_cdn(file, name):
     spaces_client.upload_fileobj(io.BytesIO(file), 'welcome-cdn', name)
 
@@ -76,20 +139,26 @@ async def send_welcome(event, chat, buttons=None, check=False, link_preview=True
     if check:
         chat.chat_id = event.chat_id
     logging.warning(f'<send_welcome> Sending welcome message to {chat.chat_id}')
-    if chat.welcome_type == 'text':
-        welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons, link_preview=link_preview)
-    else:
-        file = await get_from_cdn(chat.welcome_file_id)
-        if file:
-            if chat.welcome_type == 'video_note':
-                welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, video_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
-            elif chat.welcome_type == 'voice':
-                welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, voice_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
-            else:
-                welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, caption=chat.welcome_text, file=file, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+    try:
+        if chat.welcome_type == 'text':
+            welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons, link_preview=link_preview)
         else:
-            welcome = await event.reply('__404 media not found__', buttons=buttons)
-    return welcome
+            file = await get_from_cdn(chat.welcome_file_id)
+            if file:
+                if chat.welcome_type == 'video_note':
+                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, video_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+                elif chat.welcome_type == 'voice':
+                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, voice_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+                else:
+                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, caption=chat.welcome_text, file=file, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+            else:
+                welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message='__404 media not found__' + ('\n\n' + chat.welcome_text if chat.welcome_text else ''), buttons=buttons)
+        return welcome
+    except errors.BadRequestError as err:
+        logging.error(f'<send_welcome> Failed to send welcome message to {chat.chat_id}: {err}')
+        if 'TOPIC_CLOSED' in str(err):
+            await bot.send_message(chat.chat_owner_user_id.user_id, topic_closed[chat.chat_owner_user_id.language].format(chat.chat_title))
+        return None
 
 bot = TelegramClient(session_name, api_id,
                      api_hash).start(bot_token=bot_token)
@@ -191,7 +260,7 @@ async def register_start_handler(event):
     global register_prompt
     await asyncio.sleep(0.5)
     if ' reg_' in event.message.message:
-        real_owner_encoded = event.message.message.split(' ')[1].split('_')[1]
+        real_owner_encoded = event.message.message.split(' ')[1].split('_')[1] + '='
         # decode base64 to int
         real_owner = int.from_bytes(base64.b64decode(real_owner_encoded.encode()), 'big')
         try:
@@ -204,7 +273,10 @@ async def register_start_handler(event):
                 await register_prompt[user.user_id].delete()
                 register_prompt.pop(user.user_id)
         except KeyError:
-            await event.delete()
+            try:
+                await event.delete()
+            except errors.MessageDeleteForbiddenError:
+                logging.warning(f"<register_start> Can't delete message in {event.chat_id}, chat {event.chat.title}: no rights to delete a message")
             raise events.StopPropagation
         try:
             Chat.create(chat_id=event.chat_id, chat_title=event.chat.title, chat_owner_user_id=real_owner)
@@ -225,7 +297,7 @@ async def register_handler(event):
     # bot_user.register_chat(user)
 
     # encode event.sender_id to base64
-    encoded_id = base64.b64encode(event.sender_id.to_bytes(8, 'big')).decode()
+    encoded_id = base64.b64encode(event.sender_id.to_bytes(8, 'big')).decode().rstrip('=')
 
     buttons = [
         [Button.url(registering_new_chat_button[user.language], url=f'tg://resolve?domain={bot_name}&startgroup=reg_{encoded_id}&admin=delete_messages+manage_topics')]
@@ -437,7 +509,6 @@ async def leave_handler(event):
 
 
 
-
 #region Chat actions
 
 
@@ -491,17 +562,25 @@ async def user_added_handler(event):
 
     try:
         chat = Chat.get(Chat.chat_id == chat_id)
-        owner = User.get(User.id == chat.chat_owner_user_id)
     except Chat.DoesNotExist:
-        logging.warning(f'<new_user> Chat {chat_id} not found in the database')
-        return
+        logging.warning(f'<new_user> Chat {chat_id} not found in the database, trying private chat lookup')
+        try:
+            chat = Chat.get(Chat.chat_id == int(str(chat_id).replace('-100', '-')))
+        except Chat.DoesNotExist:
+            logging.warning(f'<new_user> Chat {chat_id} not found in the database')
+            return
     except User.DoesNotExist:
         logging.warning(f'<new_user> Owner of {chat_id} not found in the database')
         return
     except InterfaceError or OperationalError:
         database.connect(reuse_if_open=True)
 
-    chat_settings = ChatSettings.get(ChatSettings.chat_id == chat_id)
+    try:
+        owner = User.get(User.id == chat.chat_owner_user_id)
+        chat_settings = ChatSettings.get(ChatSettings.chat_id == chat_id)
+    except User.DoesNotExist:
+        logging.warning(f'<new_user> Owner of {chat_id} not found in the database')
+        return
 
     try:
         welcome = await send_welcome(event, chat, link_preview=chat_settings.link_preview)
@@ -539,9 +618,12 @@ async def user_added_handler(event):
         await asyncio.sleep(chat_settings.timeout)
         await welcome.delete()
         if chat_settings.auto_delete_svc_msg:
-            await bot.delete_messages(chat_id, event.message.id)
+            try:
+                await bot.delete_messages(chat_id, event.message.id)
+            except errors.MessageDeleteForbiddenError:
+                logging.warning(f'<new_user> Bot is not allowed to delete messages in {chat_id}')
 
-    logging.warning(f'<new_user> Welcomed successfully: {added_users} joined {chat_id}'+(' and deleted' if chat_settings.auto_delete else ''))
+    logging.warning(f'<new_user> Welcomed successfully: {added_users} joined {chat_id}'+(' and deleted' if chat_settings.auto_delete else '')+(' (by request)' if isinstance(event.message.action, types.MessageActionChatJoinedByRequest) else ' (by link)' if isinstance(event.message.action, types.MessageActionChatJoinedByLink) else ' (added/himself)'))
 
     raise events.StopPropagation
 
@@ -554,6 +636,10 @@ async def user_added_handler(event):
 async def bot_permissions_change_handler(event):
     global register_prompt
     actor = event.actor_id
+
+    with open('bot_permissions.log', 'a') as file:
+        file.write(str(event.stringify()) + '\n')
+
     try:
         if register_prompt[actor]:
             chat_id = int('-100' + str(event.channel_id))
@@ -576,7 +662,17 @@ async def bot_permissions_change_handler(event):
         logging.warning(f'<bot_permissions_change> Bot is not allowed to write in {event.channel_id}, owner {actor}')
         await bot.send_message(actor, bot_not_allowed_to_write[owner.language].format(new_chat_info.title))
     except KeyError:
-        await bot.send_message(actor, "Sorry, an error occurred. Please try /register again.")
+        if event.prev_participant and event.prev_participant.user_id in [1980946268, 1083015722]:
+            if event.new_participant.admin_rights.manage_topics != event.prev_participant.admin_rights.manage_topics:
+                logging.warning(f'<bot_permissions_change> Manage topics permission changed from {event.prev_participant.admin_rights.manage_topics} to {event.new_participant.admin_rights.manage_topics} for {chat_id}, owner {actor}')
+            if event.new_participant.admin_rights.delete_messages != event.prev_participant.admin_rights.delete_messages:
+                logging.warning(f'<bot_permissions_change> Delete messages permission changed from {event.prev_participant.admin_rights.delete_messages} to {event.new_participant.admin_rights.delete_messages} for {chat_id}, owner {actor}')
+        else:
+            logging.error(f'<bot_permissions_change> No register prompt found for {actor}, ignoring')
+            return
+    except errors.UserIsBlockedError:
+        logging.error(f'<bot_permissions_change> Owner {actor} of {chat_id} blocked the bot')
+        return
 
     raise events.StopPropagation
 
@@ -796,7 +892,6 @@ async def callback_handler(event):
     chat_id = None
     lang = None
 
-
     if ':' in data:
         if data.startswith('reg_lang:') or data.startswith('lang:'):
             lang = data.split(':')[2]
@@ -833,14 +928,17 @@ async def callback_handler(event):
         ]
 
         if data.startswith('edit_chat:'):
-            await event.delete()
-            chat_info[user.id] = await event.respond(selected_chat_info[user.language].format(chat.chat_title, chat.welcome_count) if chat.welcome_count != 0 else selected_chat_info_0_users[user.language].format(chat.chat_title))
+            try:
+                await event.delete()
+            except errors.MessageDeleteForbiddenError:
+                logging.warning(f"<callback> Can't delete message in {event.chat_id}, chat {event.chat.title}: no rights to delete a message")
+            chat_info[user.id] = await event.respond(selected_chat_info[user.language].format(chat.chat_title, chat.chat_id, chat.welcome_count) if chat.welcome_count != 0 else selected_chat_info_0_users[user.language].format(chat.chat_title, chat.chat_id))
         elif data.startswith('back_to_chat:'):
             await bot.delete_messages(event.chat_id, event.message_id)
 
         if chat.welcome_type == 'text':
             if chat_info is None:
-                chat_info[user.id] = await event.respond(selected_chat_info[user.language].format(chat.chat_title, chat.welcome_count) if chat.welcome_count != 0 else selected_chat_info_0_users[user.language].format(chat.chat_title))
+                chat_info[user.id] = await event.respond(selected_chat_info[user.language].format(chat.chat_title, chat.chat_id, chat.welcome_count) if chat.welcome_count != 0 else selected_chat_info_0_users[user.language].format(chat.chat_title, chat.chat_id))
             await chat_info[user.id].reply(chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None, link_preview=chat_settings.link_preview)
         else:
             file = await get_from_cdn(chat.welcome_file_id)
@@ -1005,11 +1103,31 @@ async def callback_handler(event):
 
 
 
-@bot.on(events.Raw())
-@logger
-async def raw_handler(event):
-    with open('updates.txt', 'a') as file:
-        file.write(str(event.stringify()) + '\n')
+# @bot.on(events.Raw())
+# @logger
+# async def raw_handler(event):
+#     updates_file = 'updates.txt'
+    
+#     # Rotate the file if it's too large
+#     rotate_log_file(updates_file, max_size_mb=5, max_files=5)
+    
+#     # Write the event to the file
+#     with open(updates_file, 'a') as file:
+#         file.write(str(event.stringify()) + '\n')
+
+
+
+@aiocron.crontab('0 * * * *') # Check DB connection every hour
+async def check_db_connection():
+    try:
+        if database.is_closed():
+            database.connect()
+            logging.warning('<check_db_connection> Database reconnected!')
+        else:
+            logging.info('<check_db_connection> Database is already connected!')
+    except (OperationalError, InterfaceError):
+        logging.error('<check_db_connection> Database connection error!', exc_info=True)
+        database.close_all()
 
 
 

@@ -324,29 +324,29 @@ chat_menu_button_back_to_chat_list = {
 }
 
 selected_chat_info = {
-    "ru": "__Чат:__\n{}\n\nСтатистика:\nБот приветствовал **{}** пользователей!",
-    "en": "__Chat:__\n{}\n\nStats:\nBot has welcomed **{}** users!",
-    "es": "__Chat:__\n{}\n\nEstadísticas:\n¡El bot ha dado la bienvenida a **{}** usuarios!",
-    "pt": "__Chat:__\n{}\n\nEstatísticas:\nO bot deu as boas-vindas a **{}** usuários!",
-    "it": "__Chat:__\n{}\n\nStatistiche:\nIl bot ha dato il benvenuto a **{}** utenti!",
-    "fr": "__Chat:__\n{}\n\nStatistiques:\nLe bot a accueilli **{}** utilisateurs!",
-    "de": "__Chat:__\n{}\n\nStatistiken:\nDer Bot hat **{}** Benutzer begrüßt!",
-    "ua": "__Чат:__\n{}\n\nСтатистика:\nБот вітав **{}** користувачів!",
-    "uz": "__Chat:__\n{}\n\nStatistika:\nBot **{}** foydalanuvchilarni kutib oldi!",
-    "tr": "__Sohbet:__\n{}\n\nİstatistikler:\nBot **{}** kullanıcıyı karşıladı!"
+    "ru": "__Чат:__\n{}\n`{}`\n\nСтатистика:\nБот приветствовал **{}** пользователей!",
+    "en": "__Chat:__\n{}\n`{}`\n\nStats:\nBot has welcomed **{}** users!",
+    "es": "__Chat:__\n{}\n`{}`\n\nEstadísticas:\n¡El bot ha dado la bienvenida a **{}** usuarios!",
+    "pt": "__Chat:__\n{}\n`{}`\n\nEstatísticas:\nO bot deu as boas-vindas a **{}** usuários!",
+    "it": "__Chat:__\n{}\n`{}`\n\nStatistiche:\nIl bot ha dato il benvenuto a **{}** utenti!",
+    "fr": "__Chat:__\n{}\n`{}`\n\nStatistiques:\nLe bot a accueilli **{}** utilisateurs!",
+    "de": "__Chat:__\n{}\n`{}`\n\nStatistiken:\nDer Bot hat **{}** Benutzer begrüßt!",
+    "ua": "__Чат:__\n{}\n`{}`\n\nСтатистика:\nБот вітав **{}** користувачів!",
+    "uz": "__Chat:__\n{}\n`{}`\n\nStatistika:\nBot **{}** foydalanuvchilarni kutib oldi!",
+    "tr": "__Sohbet:__\n{}\n`{}`\n\nİstatistikler:\nBot **{}** kullanıcıyı karşıladı!"
 }
 
 selected_chat_info_0_users = {
-    "ru": "__Чат:__\n{}\n\nСтатистика:\nБот пока никого не поприветствовал😔",
-    "en": "__Chat:__\n{}\n\nStats:\nBot hasn't welcomed anyone yet😔",
-    "es": "__Chat:__\n{}\n\nEstadísticas:\nEl bot aún no ha dado la bienvenida a nadie😔",
-    "pt": "__Chat:__\n{}\n\nEstatísticas:\nO bot ainda não deu as boas-vindas a ninguém😔",
-    "it": "__Chat:__\n{}\n\nStatistiche:\nIl bot non ha ancora dato il benvenuto a nessuno😔",
-    "fr": "__Chat:__\n{}\n\nStatistiques:\nLe bot n'a encore accueilli personne😔",
-    "de": "__Chat:__\n{}\n\nStatistiken:\nDer Bot hat noch niemanden begrüßt😔",
-    "ua": "__Чат:__\n{}\n\nСтатистика:\nБот поки що нікого не вітав😔",
-    "uz": "__Chat:__\n{}\n\nStatistika:\nBot hali hech kimni kutib olmadi😔",
-    "tr": "__Sohbet:__\n{}\n\nİstatistikler:\nBot henüz kimseyi karşılamadı😔"
+    "ru": "__Чат:__\n{}\n`{}`\n\nСтатистика:\nБот пока никого не поприветствовал😔",
+    "en": "__Chat:__\n{}\n`{}`\n\nStats:\nBot hasn't welcomed anyone yet😔",
+    "es": "__Chat:__\n{}\n`{}`\n\nEstadísticas:\nEl bot aún no ha dado la bienvenida a nadie😔",
+    "pt": "__Chat:__\n{}\n`{}`\n\nEstatísticas:\nO bot ainda não deu as boas-vindas a ninguém😔",
+    "it": "__Chat:__\n{}\n`{}`\n\nStatistiche:\nIl bot non ha ancora dato il benvenuto a nessuno😔",
+    "fr": "__Chat:__\n{}\n`{}`\n\nStatistiques:\nLe bot n'a encore accueilli personne😔",
+    "de": "__Chat:__\n{}\n`{}`\n\nStatistiken:\nDer Bot hat noch niemanden begrüßt😔",
+    "ua": "__Чат:__\n{}\n`{}`\n\nСтатистика:\nБот поки що нікого не вітав😔",
+    "uz": "__Chat:__\n{}\n`{}`\n\nStatistika:\nBot hali hech kimni kutib olmadi😔",
+    "tr": "__Sohbet:__\n{}\n`{}`\n\nİstatistikler:\nBot henüz kimseyi karşılamadı😔"
 }
 
 selected_chat_editing = {
@@ -752,6 +752,19 @@ chat_is_topic = {
     "ua": "У вашому чаті **{}** увімкнено режим топіків. Для відображення привітань, будь ласка, надайте боту права на управління топіками.",
     "uz": "Sizning chatda **{}** mavzular rejimi yoqilgan. Xush kelibsiz xabarlarni ko'rsatish uchun, botga mavzularni boshqarish huquqlarini bering.",
     "tr": "Konu modu etkinleştirildi **{}** sohbetinizde. Hoş geldiniz mesajlarını göstermek için lütfen botun konuları yönetme hakkını verin."
+}
+
+topic_closed = {
+    "ru": "Бот пытался поприветствовать пользователя в чате **{}**, но топик, в котором он пытался это сделать, **закрыт**. Пожалуйста, проверьте права бота на управление топиками.",
+    "en": "The bot tried to greet the user in the chat **{}**, but the topic it tried to do this in is **closed**. Please check the bot's rights to manage topics.",
+    "es": "El bot intentó saludar al usuario en el chat **{}**, pero el tema en el que intentó hacerlo está **cerrado**. Por favor, verifica los derechos del bot para gestionar temas.",
+    "pt": "O bot tentou saudar o usuário no chat **{}**, mas o tópico em que tentou fazer isso está **fechado**. Por favor, verifique os direitos do bot para gerenciar tópicos.",
+    "it": "Il bot ha cercato di salutare l'utente nella chat **{}**, ma l'argomento in cui ha cercato di farlo è **chiuso**. Si prega di verificare i diritti del bot per gestire gli argomenti.",
+    "fr": "Le bot a essayé de saluer l'utilisateur dans le chat **{}**, mais le sujet dans lequel il a essayé de le faire est **fermé**. Veuillez vérifier les droits du bot pour gérer les sujets.",
+    "de": "Der Bot hat versucht, den Benutzer im Chat **{}** zu begrüßen, aber das Thema, in dem er dies versucht hat, ist **geschlossen**. Bitte überprüfen Sie die Rechte des Bots zur Verwaltung von Themen.",
+    "ua": "Бот намагався привітати користувача в чаті **{}**, але топік, у якому він намагався це зробити, **закритий**. Будь ласка, перевірте права бота на управління топіками.",
+    "uz": "Bot foydalanuvchini **{}** chatida xush kelibsiz qilishga urindi, lekin u buni amalga oshirishga harakat qilgan mavzu **yopiq**. Iltimos, botning mavzularni boshqarish huquqlarini tekshiring.",
+    "tr": "Bot, **{}** sohbetinde kullanıcıyı selamlamaya çalıştı, ancak bunu yapmaya çalıştığı konu **kapalı**. Lütfen botun konuları yönetme hakkını kontrol edin."
 }
 
 bot_not_allowed_to_write = {

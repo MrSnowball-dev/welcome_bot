@@ -1,0 +1,61 @@
+UpdateChannelParticipant(
+	channel_id=2391905868,
+	date=datetime.datetime(2025, 10, 5, 10, 49, 39, tzinfo=datetime.timezone.utc),
+	actor_id=197416875,
+	user_id=1083015722,
+	qts=183146879,
+	via_chatlist=False,
+	prev_participant=ChannelParticipantAdmin(
+		user_id=1083015722,
+		promoted_by=197416875,
+		date=datetime.datetime(2024, 10, 18, 1, 52, 38, tzinfo=datetime.timezone.utc),
+		admin_rights=ChatAdminRights(
+			change_info=False,
+			post_messages=False,
+			edit_messages=False,
+			delete_messages=True,
+			ban_users=False,
+			invite_users=False,
+			pin_messages=False,
+			add_admins=False,
+			anonymous=False,
+			manage_call=False,
+			other=True,
+			manage_topics=True,
+			post_stories=False,
+			edit_stories=False,
+			delete_stories=False
+		),
+		can_edit=False,
+		is_self=True,
+		inviter_id=197416875,
+		rank=None
+	),
+	new_participant=ChannelParticipantAdmin(
+		user_id=1083015722,
+		promoted_by=197416875,
+		date=datetime.datetime(2024, 10, 18, 1, 52, 38, tzinfo=datetime.timezone.utc),
+		admin_rights=ChatAdminRights(
+			change_info=False,
+			post_messages=False,
+			edit_messages=False,
+			delete_messages=True,
+			ban_users=False,
+			invite_users=False,
+			pin_messages=False,
+			add_admins=False,
+			anonymous=False,
+			manage_call=False,
+			other=True,
+			manage_topics=False,
+			post_stories=False,
+			edit_stories=False,
+			delete_stories=False
+		),
+		can_edit=False,
+		is_self=True,
+		inviter_id=197416875,
+		rank=None
+	),
+	invite=None
+)
