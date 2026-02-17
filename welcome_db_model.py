@@ -1,9 +1,45 @@
 from peewee import *
+from playhouse.shortcuts import ReconnectMixin
 import datetime
+import logging
 
 from config import *
 
-database = PostgresqlDatabase(db_name, **{'host': db_host, 'port': db_port, 'user': db_user, 'password': db_password}, autoconnect=True, autocommit=True, autorollback=True)
+
+class ReconnectPostgresqlDatabase(ReconnectMixin, PostgresqlDatabase):
+    reconnect_errors = (
+        (OperationalError, 'SSL connection has been closed unexpectedly'),
+        (OperationalError, 'server closed the connection unexpectedly'),
+        (OperationalError, 'terminating connection'),
+        (OperationalError, 'connection not open'),
+        (OperationalError, 'could not connect to server'),
+        (InterfaceError, 'connection already closed'),
+    )
+
+    def _reconnect(self, func, *args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            if self.in_transaction():
+                raise exc
+            exc_class = type(exc)
+            if exc_class not in self._reconnect_errors:
+                raise exc
+            exc_repr = str(exc).lower()
+            for err_fragment in self._reconnect_errors[exc_class]:
+                if err_fragment in exc_repr:
+                    break
+            else:
+                raise exc
+            logging.warning(f'<db_reconnect> Connection lost ({exc}), reconnecting...')
+            if not self.is_closed():
+                self.close()
+            self.connect()
+            logging.warning('<db_reconnect> Reconnected successfully')
+            return func(*args, **kwargs)
+
+
+database = ReconnectPostgresqlDatabase(db_name, **{'host': db_host, 'port': db_port, 'user': db_user, 'password': db_password}, autoconnect=True, autocommit=True, autorollback=True)
 
 class UnknownField(object):
     def __init__(self, *_, **__): pass
