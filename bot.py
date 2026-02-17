@@ -49,6 +49,15 @@ new_message = {}
 register_prompt = {}
 chat_info = {}
 
+def database_connection_check(type=None):
+    try:
+        database.execute_sql('SELECT 1')
+        logging.warning(f'<db_connection_check, {type}> Database connection is healthy')
+    except (OperationalError, InterfaceError) as e:
+        logging.warning(f'<db_connection_check, {type}> Connection check failed ({e}), will reconnect on next query')
+
+database_connection_check('startup')
+
 # region Functions
 
 def rotate_log_file(file_path, max_size_mb=5, max_files=5):
@@ -234,7 +243,7 @@ async def set_commands_handler(event):
     #     types.BotCommand('check', 'Check chat info')
     # ]
     # await bot(functions.bots.SetBotCommandsRequest(
-    #     scope=types.botc,
+    #     scope=types.BotCommandScopeChatAdmins(),
     #     lang_code='en',
     #     commands=commands
     # ))
@@ -244,6 +253,7 @@ async def set_commands_handler(event):
 @bot.on(events.NewMessage(pattern='/start', func=lambda event: event.is_private))
 @logger
 async def start_handler(event):
+    database_connection_check('start_handler')
     try:
         user = User.get(User.user_id == event.sender_id)
         await event.respond(start_string_existing[user.language])
@@ -258,6 +268,7 @@ async def start_handler(event):
 @logger
 async def register_start_handler(event):
     global register_prompt
+    database_connection_check('register_start_handler')
     await asyncio.sleep(0.5)
     if ' reg_' in event.message.message:
         real_owner_encoded = event.message.message.split(' ')[1].split('_')[1] + '='
@@ -293,6 +304,7 @@ async def register_start_handler(event):
 @logger
 async def register_handler(event):
     global register_prompt
+    database_connection_check('register_handler')
     user = User.get(User.user_id == event.sender_id)
     # bot_user.register_chat(user)
 
@@ -309,6 +321,9 @@ async def register_handler(event):
 @logger
 async def mychats_handler(event):
     user_id = None
+
+    database_connection_check('mychats_handler')
+
     if event.sender_id == 197416875:
         if str(event.message.message).startswith('/mychats '):
             user_id = int(event.message.message.split(' ')[1])
@@ -318,8 +333,8 @@ async def mychats_handler(event):
     except User.DoesNotExist:
         await start_handler(event)
         return
-    except InterfaceError or OperationalError:
-        database.connect(reuse_if_open=True)
+    except (InterfaceError, OperationalError):
+        pass  # ReconnectMixin will handle reconnection on next query
     if user_id:
         chats = Chat.select().where(Chat.chat_owner_user_id == user_id)
     else:
@@ -337,6 +352,7 @@ async def mychats_handler(event):
 @bot.on(events.NewMessage(pattern='/settings', func=lambda event: event.is_private))
 @logger
 async def settings_handler(event):
+    database_connection_check('settings_handler')
     try:
         user = User.get(User.user_id == event.sender_id)
     except User.DoesNotExist:
@@ -353,6 +369,7 @@ async def settings_handler(event):
 @logger
 async def test_welcome_handler(event):
     permissions = await bot.get_permissions(event.chat_id, event.sender_id)
+    database_connection_check('test_welcome_handler')
     try:
         chat = Chat.get(Chat.chat_id == event.chat_id)
     except Chat.DoesNotExist:
@@ -516,6 +533,7 @@ async def leave_handler(event):
 @bot.on(events.Raw(MessageActionChatMigrateTo))
 @logger
 async def chat_migration_handler(event):
+    database_connection_check('chat_migration_handler')
     with open('migrations.txt', 'a') as file:
         file.write(str(event.stringify()) + '\n')
     try:
@@ -531,6 +549,8 @@ async def chat_migration_handler(event):
 @bot.on(events.ChatAction(func=lambda event: event.new_title))
 @logger
 async def chat_title_change_handler(event):
+    database_connection_check('chat_title_change_handler')
+
     try:
         chat = Chat.get(Chat.chat_id == event.chat_id)
         chat.chat_title = event.new_title
@@ -560,6 +580,9 @@ async def user_added_handler(event):
 
     chat_id = int('-100' + str(event.message.peer_id.channel_id))
 
+    database_connection_check('new_user_handler')
+
+    chat = None
     try:
         chat = Chat.get(Chat.chat_id == chat_id)
     except Chat.DoesNotExist:
@@ -572,8 +595,8 @@ async def user_added_handler(event):
     except User.DoesNotExist:
         logging.warning(f'<new_user> Owner of {chat_id} not found in the database')
         return
-    except InterfaceError or OperationalError:
-        database.connect(reuse_if_open=True)
+    except (InterfaceError, OperationalError):
+        pass  # ReconnectMixin will handle reconnection on next query
 
     try:
         owner = User.get(User.id == chat.chat_owner_user_id)
@@ -640,6 +663,8 @@ async def bot_permissions_change_handler(event):
     with open('bot_permissions.log', 'a') as file:
         file.write(str(event.stringify()) + '\n')
 
+    database_connection_check('bot_permissions_change_handler')
+
     try:
         if register_prompt[actor]:
             chat_id = int('-100' + str(event.channel_id))
@@ -695,6 +720,7 @@ async def bot_permissions_change_handler(event):
 async def new_welcome_handler(event):
     global new_message
 
+    database_connection_check('new_welcome_handler')
 
     if not event.sender_id in new_message:
         return
@@ -888,6 +914,9 @@ async def donate_handler(event):
 @logger
 async def callback_handler(event):
     global chat_info, new_message
+
+    database_connection_check('callback_handler')
+
     data = event.data.decode()
     chat_id = None
     lang = None
@@ -1120,14 +1149,10 @@ async def callback_handler(event):
 @aiocron.crontab('0 * * * *') # Check DB connection every hour
 async def check_db_connection():
     try:
-        if database.is_closed():
-            database.connect()
-            logging.warning('<check_db_connection> Database reconnected!')
-        else:
-            logging.info('<check_db_connection> Database is already connected!')
-    except (OperationalError, InterfaceError):
-        logging.error('<check_db_connection> Database connection error!', exc_info=True)
-        database.close_all()
+        database.execute_sql('SELECT 1')
+        logging.info('<check_db_connection> Database connection is healthy')
+    except (OperationalError, InterfaceError) as e:
+        logging.warning(f'<check_db_connection> Keepalive query triggered reconnect: {e}')
 
 
 
