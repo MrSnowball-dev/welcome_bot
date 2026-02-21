@@ -633,9 +633,12 @@ async def user_added_handler(event):
         if str(chat_id).startswith('-100'):
             chat_id = int(str(chat_id)[4:])
         buttons = [
-            [Button.url(join_notification_button[owner.language], url=f'https://t.me/c/{chat_id}/{event.message.id}')]
+            [Button.url(join_notification_button[owner.language], url=f'https://t.me/c/{chat_id}/{event.message.id}', style='primary')]
         ]
-        await bot.send_message(owner.user_id, join_notification_message[owner.language].format(chat.chat_title), buttons=buttons)
+        try:
+            await bot.send_message(owner.user_id, join_notification_message[owner.language].format(chat.chat_title), buttons=buttons)
+        except errors.UserIsBlockedError:
+            logging.warning(f'<new_user> Owner of {chat_id} blocked the bot, cannot send join notification')
 
     if chat_settings.auto_delete:
         await asyncio.sleep(chat_settings.timeout)
@@ -936,7 +939,7 @@ async def callback_handler(event):
         user.language = lang
         user.save()
         buttons = [
-            [Button.url(registering_new_chat_button[lang], url=f'tg://resolve?domain={bot_name}&startgroup=reg_chat&admin=delete_messages+manage_topics')]
+            [Button.url(registering_new_chat_button[lang], url=f'tg://resolve?domain={bot_name}&startgroup=reg_chat&admin=delete_messages+manage_topics', style="primary")]
         ]
         await event.edit(start_string_new[lang], buttons=buttons)
 
@@ -953,7 +956,7 @@ async def callback_handler(event):
 
         buttons = [
             [Button.inline(chat_menu_button_edit[user.language], b'edit_welcome:' + str(chat_id).encode())],
-            [Button.inline(chat_menu_button_back_to_chat_list[user.language], b'back_to_chat_list'), Button.inline(chat_menu_button_settings[user.language], b'edit_settings:' + str(chat_id).encode())]
+            [Button.inline(chat_menu_button_back_to_chat_list[user.language], b'back_to_chat_list', style="primary"), Button.inline(chat_menu_button_settings[user.language], b'edit_settings:' + str(chat_id).encode())]
         ]
 
         if data.startswith('edit_chat:'):
@@ -982,7 +985,7 @@ async def callback_handler(event):
                 await chat_info[user.id].reply('__404 media not found__', buttons=buttons)
 
     elif data.startswith('edit_welcome:'):
-        feedback = await event.edit(selected_chat_editing[user.language], buttons=[Button.inline(chat_menu_button_back_to_chat[user.language], b'back_to_chat:'+str(chat_id).encode())])
+        feedback = await event.edit(selected_chat_editing[user.language], buttons=[Button.inline(chat_menu_button_back_to_chat[user.language], b'back_to_chat:'+str(chat_id).encode(), style="primary")])
         new_message[event.sender_id] = {
             'chat_id': int(data.split(':')[1]),
             'feedback': feedback,
@@ -999,8 +1002,8 @@ async def callback_handler(event):
             [Button.inline(chat_menu_button_settings_notifications[user.language], b'join_notification:' + str(chat_id).encode())],
             [Button.inline(chat_menu_button_settings_ownership_transfer[user.language], b'ownership_transfer:' + str(chat_id).encode())],
             [Button.inline(chat_menu_button_settings_link_preview[user.language], b'link_preview:' + str(chat_id).encode())],
-            [Button.inline(chat_menu_button_settings_delete[user.language], b'delete_chat:' + str(chat_id).encode())],
-            [Button.inline(chat_menu_button_back_to_chat[user.language], b'back_to_chat:' + str(chat_id).encode())]
+            [Button.inline(chat_menu_button_settings_delete[user.language], b'delete_chat:' + str(chat_id).encode(), style="danger")],
+            [Button.inline(chat_menu_button_back_to_chat[user.language], b'back_to_chat:' + str(chat_id).encode(), style="primary")]
         ]
         await event.edit(chat_menu_settings[user.language], file=None, buttons=buttons)
 
@@ -1014,14 +1017,14 @@ async def callback_handler(event):
         if chat_settings.auto_delete is False:
             buttons = [
                 [Button.inline(settings_switch_button_on[user.language], b'switch_autodel:' + str(chat_id).encode())],
-                [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
+                [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode(), style="primary")]
             ]
         else:
             buttons = [
                 [Button.inline(autodelete_settings_button_timeout[user.language], b'autodelete_timeout:' + str(chat_id).encode())],
                 [Button.inline(autodelete_settings_button_delete_service_message[user.language] + (' ☑️' if chat_settings.auto_delete_svc_msg else ' ❌'), b'switch_autodel_svc_msg:' + str(chat_id).encode())],
                 [Button.inline(settings_switch_button_off[user.language], b'switch_autodel:' + str(chat_id).encode())],
-                [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
+                [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode(), style="primary")]
             ]
 
         await event.edit(autodelete_settings[user.language].format(setting_off[user.language] if chat_settings.auto_delete is False
@@ -1047,7 +1050,7 @@ async def callback_handler(event):
             [Button.inline(settings_switch_button_off[user.language] if chat_settings.join_notification
                             else settings_switch_button_on[user.language],
                             b'switch_join_notification:' + str(chat_id).encode())],
-            [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode())]
+            [Button.inline(back_to_settings_button[user.language], b'back_to_settings:' + str(chat_id).encode(), style="primary")]
         ]
 
         await event.edit(join_notification_settings[user.language].format(setting_off[user.language] if chat_settings.join_notification is False else setting_on[user.language]), buttons=buttons)
@@ -1069,8 +1072,8 @@ async def callback_handler(event):
 
     elif data.startswith('delete_chat:'):
         buttons = [
-            [Button.inline(chat_menu_settings_delete_confirmation_yes[user.language], b'confirm_delete:' + str(chat_id).encode())],
-            [Button.inline(chat_menu_settings_delete_confirmation_no[user.language], b'back_to_settings:' + str(chat_id).encode())]
+            [Button.inline(chat_menu_settings_delete_confirmation_yes[user.language], b'confirm_delete:' + str(chat_id).encode(), style="danger"),],
+            [Button.inline(chat_menu_settings_delete_confirmation_no[user.language], b'back_to_settings:' + str(chat_id).encode(), style="primary")]
         ]
         await event.edit(chat_menu_settings_delete_confirmation[user.language], buttons=buttons)
 
