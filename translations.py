@@ -806,6 +806,19 @@ user_blocked_the_bot = {
     "tr": "Bu sohbetin kaydını onaylayamıyorum, lütfen özel sohbetinizde botu engellediğinizi kontrol edin?"
 }
 
+selected_chat_info_media_caption_too_long = {
+    "ru": "Подпись к медиафайлу не может быть длиннее 1024 символов! Пожалуйста, отправьте медиафайл с более короткой подписью.",
+    "en": "The caption for the media file cannot be longer than 1024 characters! Please send a media file with a shorter caption.",
+    "es": "¡La leyenda del archivo multimedia no puede tener más de 1024 caracteres! Por favor, envíe un archivo multimedia con una leyenda más corta.",
+    "pt": "A legenda para o arquivo de mídia não pode ter mais de 1024 caracteres! Por favor, envie um arquivo de mídia com uma legenda mais curta.",
+    "it": "La didascalia per il file multimedia non può essere più lunga di 1024 caratteri! Si prega di inviare un file multimedia con una didascalia più corta.",
+    "fr": "La légende du fichier multimédia ne peut pas dépasser 1024 caractères! Veuillez envoyer un fichier multimédia avec une légende plus courte.",
+    "de": "Die Beschriftung für die Mediendatei darf nicht länger als 1024 Zeichen sein! Bitte senden Sie eine Mediendatei mit einer kürzeren Beschriftung.",
+    "ua": "Заголовок медіафайлу не може бути довшим за 1024 символів! Будь ласка, надішліть медіафайл з коротшим заголовком.",
+    "uz": "Media fayl uchun tasvir so'zlama 1024 belgigacha bo'lmaydi! Iltimos, so'zlangan media faylni kamchi belgilangan yoki kiriting.",
+    "tr": "Medya dosyasının başlığı 1024 karakterden uzun olamaz! Lütfen kısa bir başlık ile medya dosyasını gönderin."
+}
+
 user_unknown = "I don't know you yet! Please initiate a conversation with me in the private chat first."
 
 

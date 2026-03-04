@@ -17,12 +17,19 @@ import aiocron
 from welcome_db_model import *
 from config import *
 from translations import *
+from telethon_media_id import pack_media_id, send_media
 # from icecream import ic
 # import mysql.connector as mysql
 # from tg_file_id.file_id import FileId
 
 logging.basicConfig(format='[%(levelname)s]: %(message)s',
                     level=logging.WARNING)
+
+class _SuppressTypeNotFound(logging.Filter):
+    def filter(self, record):
+        return 'TypeNotFoundError' not in record.getMessage()
+
+logging.getLogger('telethon').addFilter(_SuppressTypeNotFound())
 
 
 def logger(func):
@@ -148,20 +155,37 @@ async def send_welcome(event, chat, buttons=None, check=False, link_preview=True
     if check:
         chat.chat_id = event.chat_id
     logging.warning(f'<send_welcome> Sending welcome message to {chat.chat_id}')
+    entities = pickle.loads(chat.welcome_entities) if chat.welcome_entities else None
     try:
         if chat.welcome_type == 'text':
-            welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons, link_preview=link_preview)
-        else:
+            welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message=chat.welcome_text, formatting_entities=entities, parse_mode=None, buttons=buttons, link_preview=link_preview)
+        elif not chat.welcome_file_id:
+            welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message='__404 media not found__' + ('\n\n' + chat.welcome_text if chat.welcome_text else ''), buttons=buttons)
+        elif '.' in chat.welcome_file_id:
+            # Legacy CDN file
             file = await get_from_cdn(chat.welcome_file_id)
             if file:
                 if chat.welcome_type == 'video_note':
-                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, video_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, video_note=True, caption=chat.welcome_text, formatting_entities=entities, parse_mode=None, buttons=buttons)
                 elif chat.welcome_type == 'voice':
-                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, voice_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, file=file, voice_note=True, caption=chat.welcome_text, formatting_entities=entities, parse_mode=None, buttons=buttons)
                 else:
-                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, caption=chat.welcome_text, file=file, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, parse_mode=None, buttons=buttons)
+                    welcome = await bot.send_file(chat.chat_id, reply_to=event.message.id, caption=chat.welcome_text, file=file, formatting_entities=entities, parse_mode=None, buttons=buttons)
             else:
                 welcome = await bot.send_message(chat.chat_id, reply_to=event.message.id, message='__404 media not found__' + ('\n\n' + chat.welcome_text if chat.welcome_text else ''), buttons=buttons)
+        else:
+            # Packed media ID
+            welcome, updated_id = await send_media(
+                bot, chat.chat_id, chat.welcome_file_id,
+                caption=chat.welcome_text,
+                formatting_entities=entities,
+                parse_mode=None,
+                buttons=buttons,
+                reply_to=event.message.id,
+            )
+            if updated_id != chat.welcome_file_id:
+                chat.welcome_file_id = updated_id
+                chat.save()
         return welcome
     except errors.BadRequestError as err:
         logging.error(f'<send_welcome> Failed to send welcome message to {chat.chat_id}: {err}')
@@ -772,17 +796,21 @@ async def new_welcome_handler(event):
         await event.respond(ownership_transfer_confirm[user.language].format(chat.chat_title, new_owner.name), buttons=buttons)
         return
 
-    if chat.welcome_file_id:
+    if chat.welcome_file_id and '.' in chat.welcome_file_id:
+        # Legacy CDN file — clean it up
         await delete_from_cdn(chat.welcome_file_id)
         chat.welcome_file_id = None
 
     if event.message.file:
-        if event.message.file.size > 1024 * 1024 * 5:
-            await feedback.delete()
-            await event.respond(file_too_large[user.language])
+        # if event.message.file.size > 1024 * 1024 * 5:
+        #     await feedback.delete()
+        #     await event.respond(file_too_large[user.language])
+        #     return
+
+        if event.message.message and len(event.message.message) > 1024:
+            await event.respond(selected_chat_info_media_caption_too_long[user.language])
             return
 
-        file = await event.message.download_media(bytes)
         if event.message.photo:
             chat.welcome_type = 'photo'
         elif event.message.media.round == True:
@@ -799,15 +827,13 @@ async def new_welcome_handler(event):
             chat.welcome_type = 'sticker'
         elif event.message.document:
             chat.welcome_type = 'document'
-        name = f'{chat.welcome_type}_{chat_id}{event.message.file.ext}'
         if str(event.message.message) != '':
             chat.welcome_text = event.message.message
             chat.welcome_entities = pickle.dumps(event.message.entities)
         else:
             chat.welcome_text = ''
             chat.welcome_entities = None
-        chat.welcome_file_id = name
-        await send_to_cdn(file, name)
+        chat.welcome_file_id = pack_media_id(event.message)
         chat.save()
     else:
         chat.welcome_text = event.message.message
@@ -851,7 +877,7 @@ async def payment_received_handler(event):
         if payment.payload.decode('UTF-8') == 'donate':
             user = User.get(User.user_id == event.message.sender_id)
             await bot.send_message(event.message.peer_id.user_id, donate_thanks_message[user.language])
-            asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)
             await bot.send_message(197416875, f"User {user.name} (`{user.user_id}`) donated 100 Stars!")
 
         raise events.StopPropagation
@@ -972,17 +998,46 @@ async def callback_handler(event):
             if chat_info is None:
                 chat_info[user.id] = await event.respond(selected_chat_info[user.language].format(chat.chat_title, chat.chat_id, chat.welcome_count) if chat.welcome_count != 0 else selected_chat_info_0_users[user.language].format(chat.chat_title, chat.chat_id))
             await chat_info[user.id].reply(chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None, link_preview=chat_settings.link_preview)
-        else:
-            file = await get_from_cdn(chat.welcome_file_id)
-            if file:
-                if chat.welcome_type == 'video_note':
-                    await bot.send_file(event.chat_id, reply_to=chat_info[user.id].id, file=file, video_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None)
-                elif chat.welcome_type == 'voice':
-                    await bot.send_file(event.chat_id, reply_to=chat_info[user.id].id, file=file, voice_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None)
+        elif not chat.welcome_file_id:
+            await chat_info[user.id].reply('__404 media not found__', buttons=buttons)
+        elif '.' in chat.welcome_file_id:
+            # Legacy CDN file
+            try:
+                file = await get_from_cdn(chat.welcome_file_id)
+                if file:
+                    if chat.welcome_type == 'video_note':
+                        await bot.send_file(event.chat_id, reply_to=chat_info[user.id].id, file=file, video_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None)
+                    elif chat.welcome_type == 'voice':
+                        await bot.send_file(event.chat_id, reply_to=chat_info[user.id].id, file=file, voice_note=True, caption=chat.welcome_text, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None)
+                    else:
+                        await bot.send_file(event.chat_id, reply_to=chat_info[user.id].id, caption=chat.welcome_text, file=file, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None)
                 else:
-                    await bot.send_file(event.chat_id, reply_to=chat_info[user.id].id, caption=chat.welcome_text, file=file, formatting_entities=pickle.loads(chat.welcome_entities) if chat.welcome_entities else None, buttons=buttons, parse_mode=None)
-            else:
-                await chat_info[user.id].reply('__404 media not found__', buttons=buttons)
+                    await chat_info[user.id].reply('__404 media not found__', buttons=buttons)
+            except errors.MediaCaptionTooLongError:
+                await bot.send_file(event.chat_id, reply_to=chat_info[user.id].id, file=file, caption=selected_chat_info_media_caption_too_long[user.language], buttons=buttons, parse_mode=None)
+        else:
+            # Packed media ID
+            entities = pickle.loads(chat.welcome_entities) if chat.welcome_entities else None
+            try:
+                _, updated_id = await send_media(
+                    bot, event.chat_id, chat.welcome_file_id,
+                    caption=chat.welcome_text,
+                    formatting_entities=entities,
+                    parse_mode=None,
+                    buttons=buttons,
+                    reply_to=chat_info[user.id].id,
+                )
+                if updated_id != chat.welcome_file_id:
+                    chat.welcome_file_id = updated_id
+                    chat.save()
+            except errors.MediaCaptionTooLongError:
+                await send_media(
+                    bot, event.chat_id, chat.welcome_file_id,
+                    caption=selected_chat_info_media_caption_too_long[user.language],
+                    parse_mode=None,
+                    buttons=buttons,
+                    reply_to=chat_info[user.id].id,
+                )
 
     elif data.startswith('edit_welcome:'):
         feedback = await event.edit(selected_chat_editing[user.language], buttons=[Button.inline(chat_menu_button_back_to_chat[user.language], b'back_to_chat:'+str(chat_id).encode(), style="primary")])
@@ -1078,7 +1133,7 @@ async def callback_handler(event):
         await event.edit(chat_menu_settings_delete_confirmation[user.language], buttons=buttons)
 
     elif data.startswith('confirm_delete:'):
-        if chat.welcome_file_id:
+        if chat.welcome_file_id and '.' in chat.welcome_file_id:
             await delete_from_cdn(chat.welcome_file_id)
         chat.delete_instance()
         try:
