@@ -624,6 +624,10 @@ async def new_welcome_handler(event):
             await event.respond(file_too_large[user.language])
             return
 
+        if event.message.message and len(event.message.message) > 1024:
+            await event.respond(selected_chat_info_media_caption_too_long[user.language])
+            return
+
         file = await event.message.download_media(bytes)
         if event.message.photo:
             chat.welcome_type = 'photo'
